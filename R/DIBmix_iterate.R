@@ -24,43 +24,41 @@
 DIBmix_iterate <- function(X, ncl, randinit,
                            tol, py_x, hy, px, maxiter, bws_vec,
                            contcols, catcols, runs, verbose = FALSE){
-  # Source the C++ code
-#  sourceCpp("src/qt_x_step.cpp")
-
   best_clust <- list()
   Loss <- -Inf
   best_clust$Cluster <- rep(NA, nrow(X))
   best_clust$Entropy <- Inf
+  best_clust$CondEntropy <- Inf
   best_clust$MutualInfo <- Inf
+  best_clust$InfoXT <- Inf
   best_clust$beta <- NA
-  best_clust$s <- bws_vec[contcols]
-  best_clust$lambda <- bws_vec[catcols]
-  best_clust$ents <- c()
-  best_clust$mis <- c()
+  best_clust$alpha <- 0
+  best_clust$s <- if (length(contcols) == 0) -1 else as.vector(bws_vec[contcols])
+  best_clust$lambda <- if (length(catcols) == 0) -1 else as.vector(bws_vec[catcols])
+  best_clust$iters <- NA
+  best_clust$converged <- NA
   if (ncl == 1){
     Loss <- 0
     best_clust$Cluster <- rep(1, nrow(X))
     best_clust$Entropy <- 0
+    best_clust$CondEntropy <- 0
     best_clust$MutualInfo <- 0
+    best_clust$InfoXT <- 0
     best_clust$beta <- 1
-    best_clust$ents <- 0
-    best_clust$mis <- 0
+    best_clust$iters <- 0
+    best_clust$converged <- FALSE
   } else {
+    pb <- txtProgressBar(style = 3, min = 0, max = runs)
     for (i in c(1:runs)){
-      #beta_vec <- c(beta0)
+      setTxtProgressBar(pb, i)
       beta_vec <- c()
-     # set.seed(seed)
-      # 2. Initialize qt_x (randomly)
+      # Initialize qt_x (randomly)
       qt_x_init <- matrix(0, nrow = ncl, ncol = nrow(X))
       if (is.null(randinit)){
         rand_init <- sample(rep(1:ncl, each = ceiling(nrow(X) / ncl)), size = nrow(X))
       } else {
         rand_init <- randinit
       }
-      #if (length(unique(table(rand_init))) == 1){
-      #  level1 <- which(rand_init == 1)[1]
-      #  rand_init[level1] <- 2
-      #}
       for (j in 1:ncl) {
         qt_x_init[j, rand_init == j] <- 1
       }
@@ -70,17 +68,11 @@ DIBmix_iterate <- function(X, ncl, randinit,
       qt_x <- qt_list$qt_x
       qy_t <- qy_t_step_cpp(py_x, qt_x, qt, px)
       qt_x_obj <- qt_x_step_beta_cpp(n_rows = nrow(X), T = qt_list$T, py_x, qy_t, as.numeric(qt), qt_x)
-      qt_x <- qt_x_obj[[1]]
-      #if (sum(qt_x) == 0){
-      #  message('Bad seed.')
-      #  next
-      #}
-      beta <- qt_x_obj[[2]]
+      qt_x <- qt_x_obj$qt_x
+      beta <- qt_x_obj$beta
       beta_vec <- c(beta_vec, beta)
-      #qt_x <- qt_x_step(X, T = ncl, beta = beta0, py_x, qy_t, qt)
       metrics <- calc_metrics(beta = beta, qt, qy_t, hy, px, qt_x, quiet = TRUE)
-      Lval <- metrics[[3]]
-      #cat('I(Y;T) =', Lval, '\n')
+      Lval <- metrics$iyt
       # Initialize variables for convergence checking
       convergence_threshold <- 1e-5  # Set a small threshold for convergence
       max_iterations <- maxiter  # Prevent infinite loops
@@ -94,75 +86,139 @@ DIBmix_iterate <- function(X, ncl, randinit,
         # Store old qt_x for comparison
         old_qt_x <- qt_x
 
-        # Store old Lval for comparison
-        #Lval_old <- Lval
-
         # Perform the clustering step
         qt_list <- qt_step(X, qt_x, tol, FALSE)
         qt <- qt_list$qt
         qt_x <- qt_list$qt_x
         qy_t <- qy_t_step_cpp(py_x, qt_x, qt, px)
         qt_x_obj <- qt_x_step_beta_cpp(n_rows = nrow(X), T = qt_list$T, py_x, qy_t, as.numeric(qt), qt_x)
-        qt_x <- qt_x_obj[[1]]
-        #if (sum(qt_x) == 0){
-        #  Lval <- -Inf
-        #  change_in_qt_x <- 0
-        #  message('Bad seed.')
-        #  next
-        #}
-        beta <- qt_x_obj[[2]]
+        qt_x <- qt_x_obj$qt_x
+        beta <- qt_x_obj$beta
         beta_vec <- c(beta_vec, beta)
 
         if (nrow(qt_x)!=ncl){
           Lval <- -Inf
           change_in_qt_x <- 0
           next
-          #ncl_temp <- nrow(qt_x)
-          #change_in_qt_x <- Inf
         } else {
           # Calculate metrics or any other necessary step
-          #Lval <- calc_metrics(beta = beta, qt, qy_t, hy, quiet = TRUE)[[1]]
           change_in_qt_x <- sum(abs(qt_x - old_qt_x))
         }
-        #Lval <- calc_metrics(beta = beta, qt, qy_t, hy, quiet = TRUE)[[1]]
         metrics <- calc_metrics(beta = beta, qt, qy_t, hy, px, qt_x, quiet = TRUE)
-        Lval <- metrics[[3]]
-        ### STOP BASED ON LVAL
-        #if (Lval < Lval_old){
-        #  qt_x <- old_qt_x
-        #  beta_vec <- beta_vec[-length(beta_vec)]
-        #  qt_list <- qt_step(X, qt_x, tol, FALSE)
-        #  qt <- qt_list$qt
-        #  qt_x <- qt_list$qt_x
-        #  qy_t <- qy_t_step_cpp(py_x, qt_x, qt, px)
-        #  break
-        #}
-        #cat('I(Y;T) =', Lval, '\n')
-        #result_vector <- apply(qt_x, 2, function(col) which(col == 1))
-        #return(result_vector)
+        Lval <- metrics$iyt
       }
+      
+      converged_run <- (change_in_qt_x <= convergence_threshold)
 
-      # Optional: Print the change to monitor progress
-      # cat("Iteration:", iterations, "- Change in qt_x:", change_in_qt_x, "\n")
-      # Removed conditions: & nrow(qt_x)==ncl & !all(apply(qt_x, 2, function(col) which(col == 1)) == rand_init)
-      #if (Lval < best_clust[[1]]){
       if (Lval > Loss){
-     #   best_clust[[1]] <- Lval
         Loss <- Lval
-        best_clust[[1]] <- apply(qt_x, 2, function(col) which(col == 1))
+        best_clust$Cluster <- apply(qt_x, 2, function(col) which(col == 1))
         metrics <- calc_metrics(beta = beta, qt, qy_t, hy, px, qt_x, quiet = TRUE)
-        best_clust[[2]] <- metrics[[1]]
-        best_clust[[3]] <- as.numeric(metrics[[3]])
-        best_clust[[4]] <- beta_vec
+        best_clust$Entropy <- as.numeric(metrics$ht)
+        best_clust$CondEntropy <- as.numeric(metrics$ht_x)
+        best_clust$MutualInfo <- as.numeric(metrics$iyt)
+        best_clust$InfoXT <- as.numeric(metrics$ixt)
+        best_clust$beta <- beta_vec
+        best_clust$iters <- iterations
+        best_clust$converged <- converged_run
       }
-      metrics <- calc_metrics(beta = beta, qt, qy_t, hy, px, qt_x, quiet = TRUE)
-      best_clust$ents <- c(best_clust$ents, metrics[[1]])
-      best_clust$mis <- c(best_clust$mis, metrics[[3]])
       if (verbose){
         message('Run ', i, ' complete.\n')
       }
     }
+    close(pb) 
   }
 
   return(best_clust)
+}
+
+txtProgressBar <- function(min = 0, max = 1, initial = 0, char = "=", width = NA, 
+                           title, label, style = 1, file = "") 
+{
+  if (!identical(file, "") && !(inherits(file, "connection") && 
+                                isOpen(file))) 
+    stop("'file' must be \"\" or an open connection object")
+  if (!style %in% 1L:3L) 
+    style <- 1
+  .val <- initial
+  .killed <- FALSE
+  .nb <- 0L
+  .pc <- -1L
+  nw <- nchar(char, "w")
+  if (is.na(width)) {
+    width <- getOption("width")
+    if (style == 3L) 
+      width <- width - 10L
+    width <- trunc(width/nw)
+  }
+  if (max <= min) 
+    stop("must have 'max' > 'min'")
+  up1 <- function(value) {
+    if (!is.finite(value) || value < min || value > max) 
+      return()
+    .val <<- value
+    nb <- round(width * (value - min)/(max - min))
+    if (.nb < nb) {
+      cat(strrep(char, nb - .nb), file = file)
+      flush.console()
+    }
+    else if (.nb > nb) {
+      cat("\r", strrep(" ", .nb * nw), "\r", strrep(char, 
+                                                    nb), sep = "", file = file)
+      flush.console()
+    }
+    .nb <<- nb
+  }
+  up2 <- function(value) {
+    if (!is.finite(value) || value < min || value > max) 
+      return()
+    .val <<- value
+    nb <- round(width * (value - min)/(max - min))
+    if (.nb <= nb) {
+      cat("\r", strrep(char, nb), sep = "", file = file)
+      flush.console()
+    }
+    else {
+      cat("\r", strrep(" ", .nb * nw), "\r", strrep(char, 
+                                                    nb), sep = "", file = file)
+      flush.console()
+    }
+    .nb <<- nb
+  }
+  up3 <- function(value) {
+    if (!is.finite(value) || value < min || value > max) 
+      return()
+    .val <<- value
+    nb <- round(width * (value - min)/(max - min))
+    pc <- round(100 * (value - min)/(max - min))
+    if (nb == .nb && pc == .pc) 
+      return()
+    cat(paste0("\r  |", strrep(" ", nw * width + 6)), file = file)
+    cat(paste(c("\r  |", rep.int(char, nb), rep.int(" ", 
+                                                    nw * (width - nb)), sprintf("| %3d%%", pc)), collapse = ""), 
+        file = file)
+    flush.console()
+    .nb <<- nb
+    .pc <<- pc
+  }
+  getVal <- function() .val
+  kill <- function() if (!.killed) {
+    cat("\n", file = file)
+    flush.console()
+    .killed <<- TRUE
+  }
+  up <- switch(style, up1, up2, up3)
+  up(initial)
+  structure(list(getVal = getVal, up = up, kill = kill), class = "txtProgressBar")
+}
+
+
+setTxtProgressBar <- function (pb, value, title = NULL, label = NULL) 
+{
+  if (!inherits(pb, "txtProgressBar")) 
+    stop(gettextf("'pb' is not from class %s", dQuote("txtProgressBar")), 
+         domain = NA)
+  oldval <- pb$getVal()
+  pb$up(value)
+  invisible(oldval)
 }

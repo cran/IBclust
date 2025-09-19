@@ -1,7 +1,7 @@
 Package: IBclust
 Type: Package
 Title: Information Bottleneck Methods for Clustering Mixed-Type Data
-Version: 1.2
+Version: 1.2.1
 Authors@R: c(person(given = "Efthymios",
                     family = "Costa",
                     role = "aut"),
@@ -13,26 +13,27 @@ Authors@R: c(person(given = "Efthymios",
                     role = c("aut", "cre"),
                     email = "amarkos@gmail.com"))
 Description: Implements multiple variants of the Information Bottleneck ('IB') method 
-    for clustering datasets containing mixed-type variables (nominal, ordinal, and 
-    continuous). The package provides deterministic, agglomerative, generalized, 
+    for clustering datasets containing continuous, categorical (nominal/ordinal) and mixed-type variables.
+    The package provides deterministic, agglomerative, generalized, 
     and standard 'IB' clustering algorithms that preserve relevant information while 
     forming interpretable clusters. The Deterministic Information Bottleneck is described in 
     Costa et al. (2024) <doi:10.48550/arXiv.2407.03389>. The standard 'IB' method 
     originates from Tishby et al. (2000) <doi:10.48550/arXiv.physics/0004057>, 
     the agglomerative variant from Slonim and Tishby (1999) <https://papers.nips.cc/paper/1651-agglomerative-information-bottleneck>, 
-    and the generalized 'IB' for Gaussian variables from Chechik et al. (2005) <https://www.jmlr.org/papers/volume6/chechik05a/chechik05a.pdf>.
-License: MIT + file LICENSE
+    and the generalized 'IB' from Strouse and Schwab (2017) <doi:10.1162/NECO_a_00961>.
+License: GPL (>= 3)
 Encoding: UTF-8
 Depends: R (>= 3.5.0)
 Imports: Rcpp, stats, utils, np, rje, Rdpack, RcppEigen
+Suggests: mclust
 LinkingTo: Rcpp, RcppArmadillo, RcppEigen
 RoxygenNote: 7.3.2
 RdMacros: Rdpack
 NeedsCompilation: yes
-Packaged: 2025-07-07 14:57:58 UTC; amarkos
+Packaged: 2025-09-19 09:48:28 UTC; amarkos
 Author: Efthymios Costa [aut],
   Ioanna Papatsouma [aut],
   Angelos Markos [aut, cre]
 Maintainer: Angelos Markos <amarkos@gmail.com>
 Repository: CRAN
-Date/Publication: 2025-07-10 15:20:16 UTC
+Date/Publication: 2025-09-19 11:20:17 UTC

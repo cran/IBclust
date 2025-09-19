@@ -12,7 +12,7 @@ devtools::install_github("amarkos/IBclust")  # Install IBclust from GitHub
 ```
 
 ## Getting Started
-Below is a comprehensive example demonstrating how to use the package for clustering mixed-type, continuous, and categorical datasets, and displaying the results. The examples make use of the Deterministic Information Bottleneck (DIB) method for lcustering; other options include the Agglomerative IB for hierarchical clustering, the Generalised IB and the standard IB for fuzzy clustering.
+Below is a comprehensive example demonstrating how to use the package for clustering mixed-type, continuous, and categorical datasets, and displaying the results. The examples make use of the Deterministic Information Bottleneck (DIB) method for clustering; other options include the Agglomerative IB for hierarchical clustering, the Generalised IB and the standard IB for fuzzy clustering.
 
 ```r
 library(IBclust)
@@ -27,18 +27,18 @@ data <- data.frame(
   cont_var2 = runif(100)                                           # Continuous variable 2
 )
 
-# Perform Mixed-Type Clustering using the Deterministic variant
-result_mix <- DIBmix(X = data, ncl = 3, catcols = 1:2, contcols = 3:4)
+# Perform Mixed-Type Clustering using the Deterministic variant and automatic bandwidth selection
+result_mix <- DIBmix(X = data, ncl = 3)
 cat("Mixed-Type Clustering Results:\n")
 print(result_mix$Cluster)
 print(result_mix$Entropy)
 print(result_mix$MutualInfo)
 
 # Example Continuous Data
-X_cont <- matrix(rnorm(1000), ncol = 5)  # 200 observations, 5 features
+X_cont <- as.data.frame(matrix(rnorm(1000), ncol = 5))  # 200 observations, 5 features
 
 # Perform Continuous Data Clustering 
-result_cont <- DIBcont(X = X_cont, ncl = 3, s = -1, nstart = 50)
+result_cont <- DIBmix(X = X_cont, ncl = 3, s = -1, nstart = 50)
 cat("Continuous Clustering Results:\n")
 print(result_cont$Cluster)
 print(result_cont$Entropy)
@@ -53,7 +53,7 @@ X_cat <- data.frame(
 )
 
 # Perform Categorical Data Clustering
-result_cat <- DIBcat(X = X_cat, ncl = 3, lambda = -1, nstart = 50)
+result_cat <- DIBmix(X = X_cat, ncl = 3, lambda = -1, nstart = 50)
 cat("Categorical Clustering Results:\n")
 print(result_cat$Cluster)
 print(result_cat$Entropy)
