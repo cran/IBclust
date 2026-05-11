@@ -1,6 +1,9 @@
 input_checks_preprocess <- function(X, s, lambda, scale,
                                     contkernel, nomkernel,
-                                    ordkernel, cat_first){
+                                    ordkernel, cat_first,
+                                    nystrom, n_landmarks,
+                                    landmark_indices = NULL,
+                                    nystrom_available = TRUE){
   # Validate inputs
   if (!is.data.frame(X)) {
     stop("Input 'X' must be a data frame.")
@@ -11,6 +14,9 @@ input_checks_preprocess <- function(X, s, lambda, scale,
   if (!is.logical(cat_first)) {
     stop("'cat_first' must be a logical value (TRUE or FALSE).")
   }
+  if (!is.logical(nystrom_available)) {
+    stop("'nystrom_available' must be a logical value (TRUE or FALSE).")
+  }
   # Check kernel types
   if (!contkernel %in% c("gaussian", "epanechnikov")){
     stop("'contkernel' can only be one of 'gaussian' or 'epanechnikov'")
@@ -20,6 +26,36 @@ input_checks_preprocess <- function(X, s, lambda, scale,
   }
   if (!ordkernel %in% c("liracine", "wangvanryzin")){
     stop("'ordkernel' can only be one of 'liracine' or 'wangvanryzin'")
+  }
+  if (nrow(X) > 1000 & nystrom == FALSE & nystrom_available){
+    warning("Number of observations exceeds 1000; perhaps consider using the Nystr\u00f6m approximation (nystrom = TRUE).")
+  }
+  if (nrow(X) <= 1000 & nystrom == TRUE){
+    stop("Nystr\u00f6m approximation cannot be used if number of observations is not more than 1000.")
+  }
+  if (nystrom){
+    if (!is.null(landmark_indices)){
+      if (!is.numeric(landmark_indices) ||
+          any(landmark_indices != round(landmark_indices)) ||
+          any(landmark_indices < 1) ||
+          any(landmark_indices > nrow(X)) ||
+          anyDuplicated(landmark_indices)) {
+        stop("'landmark_indices' must be a vector of unique integers in [1, nrow(X)].")
+      }
+      landmark_indices <- as.integer(landmark_indices)
+      if (is.null(n_landmarks)){
+        n_landmarks <- length(landmark_indices)
+      } else if (n_landmarks != length(landmark_indices)){
+        stop("'n_landmarks' must equal the length of 'landmark_indices' when both are provided.")
+      }
+    } else {
+      if (is.null(n_landmarks)){
+        n_landmarks <- ceiling(sqrt(nrow(X)))
+      }
+      if (n_landmarks != round(n_landmarks) || n_landmarks <= 0 || n_landmarks >= nrow(X)){
+        stop("'n_landmarks' must be a positive integer smaller than the number of observations.")
+      }
+    }
   }
   X <- data.frame(X)
   # Check catcols/contcols
@@ -86,16 +122,23 @@ input_checks_preprocess <- function(X, s, lambda, scale,
   } else if (length(catcols) == 0){
     if (length(s) == 1){
       if (s == -1){
-        s <- compute_bandwidth_cont(X, contkernel = contkernel)
+        s <- compute_bandwidth_cont(X,
+                                    contcols = contcols,
+                                    contkernel = contkernel,
+                                    nomkernel = nomkernel,
+                                    ordkernel = ordkernel,
+                                    nystrom = nystrom)
       }
     }
     bws_vec <- rep(s, length(contcols))
   } else {
     bws_vec <- compute_s_lambda(X, contcols, catcols, s, lambda,
                                 contkernel, nomkernel, ordkernel,
-                                cat_first)
+                                cat_first, nystrom)
   }
   return(list('X' = X, 'bws_vec' = bws_vec,
               'contcols' = contcols,
-              'catcols' = catcols))
+              'catcols' = catcols,
+              'n_landmarks' = n_landmarks,
+              'landmark_indices' = landmark_indices))
 }

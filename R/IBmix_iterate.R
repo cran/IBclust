@@ -22,6 +22,7 @@
 #' @return A list containing clustering results.
 #'
 #' @keywords internal
+#' @noRd
 IBmix_iterate <- function(X, ncl, beta, randinit, conv_tol,
                           tol, py_x, hy, px, maxiter, bws_vec,
                           contcols, catcols, runs, verbose = FALSE){
@@ -65,8 +66,8 @@ IBmix_iterate <- function(X, ncl, beta, randinit, conv_tol,
       qt_list <- qt_step(X, qt_x_init, ptol = tol, quiet = TRUE)
       qt <- qt_list$qt
       qt_x <- qt_list$qt_x
-      qy_t <- qy_t_step_cpp(py_x, qt_x, qt, px)
-      qt_x <- qt_x_step_gib_cpp(n_rows = nrow(X), T = qt_list$T, beta = beta, alpha = 1, py_x, qy_t, as.numeric(qt))
+      qy_t <- qy_t_step(py_x, qt_x, qt, px)
+      qt_x <- qt_x_step_gib(n_rows = nrow(X), T = qt_list$T, beta = beta, alpha = 1, py_x, qy_t, as.numeric(qt))
       metrics <- calc_metrics(beta = beta, qt, qy_t, hy, px, qt_x, quiet = TRUE)
       Lval <- metrics$ixt - beta * metrics$iyt
       # Initialize variables for convergence checking
@@ -86,8 +87,8 @@ IBmix_iterate <- function(X, ncl, beta, randinit, conv_tol,
         qt_list <- qt_step(X, qt_x, tol, FALSE)
         qt <- qt_list$qt
         qt_x <- qt_list$qt_x
-        qy_t <- qy_t_step_cpp(py_x, qt_x, qt, px)
-        qt_x <- qt_x_step_gib_cpp(n_rows = nrow(X), T = qt_list$T, beta = beta, alpha = 1, py_x, qy_t, as.numeric(qt))
+        qy_t <- qy_t_step(py_x, qt_x, qt, px)
+        qt_x <- qt_x_step_gib(n_rows = nrow(X), T = qt_list$T, beta = beta, alpha = 1, py_x, qy_t, as.numeric(qt))
         
         if (nrow(qt_x)!=ncl){
           Lval <- -Inf
@@ -123,95 +124,4 @@ IBmix_iterate <- function(X, ncl, beta, randinit, conv_tol,
   }
   
   return(best_clust)
-}
-
-txtProgressBar <- function(min = 0, max = 1, initial = 0, char = "=", width = NA, 
-                           title, label, style = 1, file = "") 
-{
-  if (!identical(file, "") && !(inherits(file, "connection") && 
-                                isOpen(file))) 
-    stop("'file' must be \"\" or an open connection object")
-  if (!style %in% 1L:3L) 
-    style <- 1
-  .val <- initial
-  .killed <- FALSE
-  .nb <- 0L
-  .pc <- -1L
-  nw <- nchar(char, "w")
-  if (is.na(width)) {
-    width <- getOption("width")
-    if (style == 3L) 
-      width <- width - 10L
-    width <- trunc(width/nw)
-  }
-  if (max <= min) 
-    stop("must have 'max' > 'min'")
-  up1 <- function(value) {
-    if (!is.finite(value) || value < min || value > max) 
-      return()
-    .val <<- value
-    nb <- round(width * (value - min)/(max - min))
-    if (.nb < nb) {
-      cat(strrep(char, nb - .nb), file = file)
-      flush.console()
-    }
-    else if (.nb > nb) {
-      cat("\r", strrep(" ", .nb * nw), "\r", strrep(char, 
-                                                    nb), sep = "", file = file)
-      flush.console()
-    }
-    .nb <<- nb
-  }
-  up2 <- function(value) {
-    if (!is.finite(value) || value < min || value > max) 
-      return()
-    .val <<- value
-    nb <- round(width * (value - min)/(max - min))
-    if (.nb <= nb) {
-      cat("\r", strrep(char, nb), sep = "", file = file)
-      flush.console()
-    }
-    else {
-      cat("\r", strrep(" ", .nb * nw), "\r", strrep(char, 
-                                                    nb), sep = "", file = file)
-      flush.console()
-    }
-    .nb <<- nb
-  }
-  up3 <- function(value) {
-    if (!is.finite(value) || value < min || value > max) 
-      return()
-    .val <<- value
-    nb <- round(width * (value - min)/(max - min))
-    pc <- round(100 * (value - min)/(max - min))
-    if (nb == .nb && pc == .pc) 
-      return()
-    cat(paste0("\r  |", strrep(" ", nw * width + 6)), file = file)
-    cat(paste(c("\r  |", rep.int(char, nb), rep.int(" ", 
-                                                    nw * (width - nb)), sprintf("| %3d%%", pc)), collapse = ""), 
-        file = file)
-    flush.console()
-    .nb <<- nb
-    .pc <<- pc
-  }
-  getVal <- function() .val
-  kill <- function() if (!.killed) {
-    cat("\n", file = file)
-    flush.console()
-    .killed <<- TRUE
-  }
-  up <- switch(style, up1, up2, up3)
-  up(initial)
-  structure(list(getVal = getVal, up = up, kill = kill), class = "txtProgressBar")
-}
-
-
-setTxtProgressBar <- function (pb, value, title = NULL, label = NULL) 
-{
-  if (!inherits(pb, "txtProgressBar")) 
-    stop(gettextf("'pb' is not from class %s", dQuote("txtProgressBar")), 
-         domain = NA)
-  oldval <- pb$getVal()
-  pb$up(value)
-  invisible(oldval)
 }

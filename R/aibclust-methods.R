@@ -7,10 +7,11 @@
 #' @aliases print.aibclust summary.aibclust print.summary.aibclust plot.aibclust
 #' @keywords methods
 #' @importFrom graphics plot points barplot
-NULL
+#' @keywords internal
+#' @noRd
 
-#' @rdname aibclust-methods
-#' @export
+#' @method print aibclust
+#' @exportS3Method
 print.aibclust <- function(x, ...) {
   header <- "Hierarchical clustering with AIBmix"
   cat(header, "\n", strrep("-", nchar(header)), "\n", sep = "")
@@ -55,10 +56,13 @@ print.aibclust <- function(x, ...) {
   invisible(x)
 }
 
-#' @rdname aibclust-methods
 #' @param k Optional integer vector of cluster counts (cuts) to summarise (same as \code{m}).
 #' @param m Optional synonym for \code{k}; the number of clusters.
-#' @export
+#' @param object An aibclust object
+#' @keywords internal
+#' @noRd
+#' @method summary aibclust
+#' @exportS3Method
 summary.aibclust <- function(object, k = NULL, m = NULL, ...) {
   n <- object$n
   # vectors (guard against NULL)
@@ -150,7 +154,12 @@ summary.aibclust <- function(object, k = NULL, m = NULL, ...) {
   out
 }
 
-#' @export
+#' @rdname aibclust-methods
+#' @param x an \code{aibclust} object.
+#' @keywords internal
+#' @noRd
+#' @method print summary.aibclust
+#' @exportS3Method
 print.summary.aibclust <- function(x, ...) {
   header <- "Summary of AIBmix clustering"
   cat(header, "\n", strrep("-", nchar(header)), "\n", sep = "")
@@ -213,29 +222,81 @@ print.summary.aibclust <- function(x, ...) {
 #' Plot an aibclust object
 #'
 #' @param x an \code{aibclust} object.
-#' @param type \code{"dendrogram"} (default) or \code{"info"} (information retained curve).
-#' @param main optional title.
+#' @param type \code{"dendrogram"} (default), \code{"info"} (information retained curve), or \code{"importance"} (variable importance bar chart).
+#' @param main Optional title.
+#' @param col Optional color
 #' @param labels logical; show labels on dendrogram.
+#' @param X Original data frame used to fit \code{x}; required for
+#'   \code{type = "importance"}.
+#' @param ncl Number of clusters at which to cut the hierarchy; required
+#'   for \code{type = "importance"} on \code{aibclust} objects.
+#' @param color_by_type Logical; if \code{TRUE}, colour bars by variable type
+#'   (continuous / nominal / ordinal). Defaults to \code{TRUE}.
 #' @param ... passed to graphics.
-#' @rdname aibclust-methods
-#' @export
-plot.aibclust <- function(x, type = c("dendrogram", "info"), main = NULL, labels = TRUE, ...) {
+#' @keywords internal
+#' @noRd
+#' @method plot aibclust
+#' @exportS3Method
+plot.aibclust <- function(x, type = c("dendrogram", "info", "importance"),
+                          X = NULL, ncl = NULL, color_by_type = TRUE, col = NULL,
+                          main = NULL, labels = TRUE, ...) {
   type <- match.arg(type)
   
+  if (type == "importance") {
+    if (is.null(X)) {
+      stop("Argument 'X' (the original data frame) is required for type = 'importance'.")
+    }
+    if (is.null(ncl)) {
+      stop("Argument 'ncl' (number of clusters to cut at) is required for type = 'importance'.")
+    }
+    if (ncl < 2 || ncl > length(x$partitions)) {
+      stop(sprintf("'ncl' must be between 2 and %d.", length(x$partitions)))
+    }
+    if (nrow(X) != x$n) {
+      stop(sprintf("nrow(X) = %d does not match the fitted model's n = %d.",
+                   nrow(X), x$n))
+    }
+    
+    cluster <- x$partitions[[ncl]]
+    
+    iyt <- .compute_variable_importance(
+      X = X,
+      cluster = cluster,
+      s = x$s,
+      lambda = x$lambda,
+      contcols = x$contcols,
+      catcols = x$catcols,
+      kernels = x$kernels,
+      nystrom_landmarks = NULL,
+      scale = x$scale
+    )
+    .plot_variable_importance(iyt, X = X,
+                              color_by_type = color_by_type,
+                              col = col,
+                              main = main, ...)
+    return(invisible(x))
+  }
+  
   if (type == "dendrogram") {
-    # rebuild dendrogram at plot time
     lab <- if (isTRUE(labels)) x$obs_names else NULL
     d <- make_dendrogram(x$merges, x$merge_costs, labels = lab)
     if (is.null(main)) main <- "AIBmix dendrogram"
-    plot(d, main = main, ...)
+    # Pass col through only if supplied; dendrogram default styling otherwise
+    if (is.null(col)) {
+      plot(d, main = main, ...)
+    } else {
+      plot(d, main = main, edgePar = list(col = col), ...)
+    }
   } else {  # "info"
-    # plot information retained vs number of clusters m
-    m <- seq_len(x$n) 
+    m <- seq_len(x$n)
     y <- x$info_ret
+    line_col <- if (is.null(col)) "black" else col
     if (is.null(main)) main <- "Information retention curve"
-    plot(m, y, type = "l", xlab = "Number of clusters (m)",
-         ylab = expression(I(T[m] * ";" * Y) / I(X * ";" * Y)), main = main, ...)
-    points(m, y, ...)
+    plot(m, y, type = "l", col = line_col,
+         xlab = "Number of clusters (m)",
+         ylab = expression(I(T[m] * ";" * Y) / I(X * ";" * Y)),
+         main = main, ...)
+    points(m, y, col = line_col, ...)
   }
   invisible(x)
 }

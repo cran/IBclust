@@ -8,12 +8,12 @@
 #' @keywords methods
 #' @seealso \code{\link{DIBmix}}, \code{\link{IBmix}}, \code{\link{GIBmix}}
 #' @importFrom graphics barplot points
-NULL
+#' @keywords internal
+#' @noRd
+#' 
 
-# ---- S3: print() -------------------------------------------------------------
-
-#' @rdname gibclust-methods
-#' @export
+#' @method print gibclust
+#' @exportS3Method
 print.gibclust <- function(x, ...) {
   # Header depends on alpha
   header <- if (isTRUE(all.equal(x$alpha, 1))) {
@@ -80,10 +80,12 @@ print.gibclust <- function(x, ...) {
   invisible(x)
 }
 
-# ---- S3: summary() -----------------------------------------------------------
-
 #' @rdname gibclust-methods
-#' @export
+#' @param object A gibclust object
+#' @keywords internal
+#' @noRd
+#' @method summary gibclust
+#' @exportS3Method
 summary.gibclust <- function(object, ...) {
   variant <- if (isTRUE(all.equal(object$alpha, 0))) {
     "DIBmix"
@@ -160,7 +162,10 @@ summary.gibclust <- function(object, ...) {
 }
 
 #' @rdname gibclust-methods
-#' @export
+#' @keywords internal
+#' @noRd
+#' @method print summary.gibclust
+#' @exportS3Method
 print.summary.gibclust <- function(x, ...) {
   header <- switch(x$variant,
                    "DIBmix" = "Summary of DIBmix clustering",
@@ -228,35 +233,70 @@ print.summary.gibclust <- function(x, ...) {
   invisible(x)
 }
 
-# ---- S3: plot() --------------------------------------------------------------
 #' Plot a gibclust object
 #'
 #' @param x A gibclust object.
-#' @param type Plot type: "sizes" (cluster sizes), "info" (information metrics),
-#'   or "beta" (log(beta) trajectory; DIBmix only).
+#' @param type Plot type: \code{"sizes"} (cluster sizes), \code{"info"} (information metrics), \code{"beta"} (log(beta) trajectory; DIBmix only), or \code{"importance"} (variable importance bar chart).
 #' @param main Optional title.
+#' @param col Optional color.
+#' @param X Original data frame used to fit \code{x}; required for
+#'   \code{type = "importance"}.
+#' @param ncl Number of clusters at which to cut the hierarchy; required
+#'   for \code{type = "importance"} on \code{aibclust} objects.
+#' @param color_by_type Logical; if \code{TRUE}, colour bars by variable type
+#'   (continuous / nominal / ordinal). Defaults to \code{TRUE}.
 #' @param ... Additional arguments passed to base plotting functions.
-#' @rdname gibclust-methods
-#' @export
-plot.gibclust <- function(x, type = c("sizes", "info", "beta"), main = NULL, ...) {
+#' @keywords internal
+#' @noRd
+#' @method plot gibclust
+#' @exportS3Method
+plot.gibclust <- function(x, type = c("sizes", "info", "beta", "importance"),
+                          X = NULL, color_by_type = TRUE, col = NULL,
+                          main = NULL, ...) {
   type <- match.arg(type)
   
-  # helper: harden fuzzy memberships for ncl x n membership matrix
   harden <- function(C) apply(C, 2, which.max)
+  
+  if (type == "importance") {
+    if (is.null(X)) {
+      stop("Argument 'X' (the original data frame) is required for type = 'importance'.")
+    }
+    if (nrow(X) != x$n) {
+      stop(sprintf("nrow(X) = %d does not match the fitted model's n = %d.",
+                   nrow(X), x$n))
+    }
+    cluster <- if (is.matrix(x$Cluster)) harden(x$Cluster) else x$Cluster
+    
+    iyt <- .compute_variable_importance(
+      X = X,
+      cluster = cluster,
+      s = x$s,
+      lambda = x$lambda,
+      contcols = x$contcols,
+      catcols = x$catcols,
+      kernels = x$kernels,
+      nystrom_landmarks = x$nystrom_landmarks,
+      scale = x$scale
+    )
+    .plot_variable_importance(iyt, X = X,
+                              color_by_type = color_by_type,
+                              col = col,
+                              main = main, ...)
+    return(invisible(x))
+  }
   
   if (type == "sizes") {
     if (isTRUE(all.equal(x$alpha, 0))) {
-      # DIBmix: hard labels vector
       cl <- x$Cluster
       if (is.vector(cl) && length(cl) == x$n) {
         tab <- table(as.integer(cl))
         if (is.null(main)) main <- "Cluster sizes (DIBmix)"
-        barplot(tab, ylab = "Count", xlab = "Cluster", main = main, ...)
+        barplot(tab, ylab = "Count", xlab = "Cluster", main = main,
+                col = if (is.null(col)) "gray" else col, ...)
       } else {
         warning("Hard labels unavailable or malformed for DIBmix.")
       }
     } else {
-      # IB/GIB: fuzzy membership matrix (ncl x n)
       C <- x$Cluster
       if (is.matrix(C) && nrow(C) == x$ncl && ncol(C) == x$n) {
         lab <- harden(C)
@@ -265,19 +305,21 @@ plot.gibclust <- function(x, type = c("sizes", "info", "beta"), main = NULL, ...
           main <- if (isTRUE(all.equal(x$alpha, 1))) "Hardened sizes (IBmix)"
           else "Hardened sizes (GIBmix)"
         }
-        barplot(tab, ylab = "Count", xlab = "Cluster", main = main, ...)
+        barplot(tab, ylab = "Count", xlab = "Cluster", main = main,
+                col = if (is.null(col)) "gray" else col, ...)
       } else {
         warning("Membership matrix unavailable or malformed for IB/GIB.")
       }
     }
     
   } else if (type == "info") {
-    vals <- c(`H(T)` = x$Entropy,
+    vals <- c(`H(T)`   = x$Entropy,
               `H(T|X)` = x$CondEntropy,
-              `I(Y;T)`    = x$MutualInfo)
+              `I(Y;T)` = x$MutualInfo)
     vals[!is.finite(vals)] <- NA_real_
     if (is.null(main)) main <- "Information summary"
-    barplot(vals, ylab = "Value", main = main, ...)
+    barplot(vals, ylab = "Value", main = main,
+            col = if (is.null(col)) "gray" else col, ...)
     
   } else { # type == "beta"
     if (!isTRUE(all.equal(x$alpha, 0))) {
@@ -289,23 +331,19 @@ plot.gibclust <- function(x, type = c("sizes", "info", "beta"), main = NULL, ...
       warning("No beta trajectory available to plot.")
       return(invisible(x))
     }
-    idx <- 0:(length(b) - 1) 
+    idx <- 0:(length(b) - 1)
     logb <- log(b)
+    line_col <- if (is.null(col)) "black" else col
     
     if (is.null(main)) main <- expression(log(beta) ~ " trajectory (DIBmix)")
     
-    if (all(is.finite(logb))) {
-      plot(idx, logb, type = "l",
-           xlab = "Iteration", ylab = expression(log(beta)),
-           main = main, ...)
-      points(idx, logb, ...)
-    } else {
+    if (!all(is.finite(logb))) {
       warning("Non-finite values in log(beta); some points omitted.")
-      plot(idx, logb, type = "l",
-           xlab = "Iteration", ylab = expression(log(beta)),
-           main = main, ...)
-      points(idx, logb, ...)
     }
+    plot(idx, logb, type = "l", col = line_col,
+         xlab = "Iteration", ylab = expression(log(beta)),
+         main = main, ...)
+    points(idx, logb, col = line_col, ...)
   }
   invisible(x)
 }

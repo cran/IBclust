@@ -17,6 +17,18 @@ mutual_information <- function(p_xy, base = 2.0) {
     .Call(`_IBclust_mutual_information`, p_xy, base)
 }
 
+js_divergence_nystrom <- function(p_z_i, p_z_j) {
+    .Call(`_IBclust_js_divergence_nystrom`, p_z_i, p_z_j)
+}
+
+make_IB_distmat_nystrom_cpp <- function(B, col_sums) {
+    .Call(`_IBclust_make_IB_distmat_nystrom_cpp`, B, col_sums)
+}
+
+mutual_information_nystrom_cpp <- function(B, col_sums) {
+    .Call(`_IBclust_mutual_information_nystrom_cpp`, B, col_sums)
+}
+
 klSingle <- function(p, q) {
     .Call(`_IBclust_klSingle`, p, q)
 }
@@ -39,5 +51,25 @@ qy_t_step_cpp <- function(py_x, qt_x, qt, px) {
 
 qt_x_step_gib_cpp <- function(n_rows, T, beta, alpha, py_x, qy_t, qt) {
     .Call(`_IBclust_qt_x_step_gib_cpp`, n_rows, T, beta, alpha, py_x, qy_t, qt)
+}
+
+qy_t_step_nystrom_cpp <- function(B, col_sums, qt_x, qt, px) {
+    .Call(`_IBclust_qy_t_step_nystrom_cpp`, B, col_sums, qt_x, qt, px)
+}
+
+compute_cross_entropy_nystrom <- function(B, col_sums, qy_t) {
+    .Call(`_IBclust_compute_cross_entropy_nystrom`, B, col_sums, qy_t)
+}
+
+qt_x_step_nystrom_cpp <- function(n_rows, T, beta, B, col_sums, qy_t, qt) {
+    .Call(`_IBclust_qt_x_step_nystrom_cpp`, n_rows, T, beta, B, col_sums, qy_t, qt)
+}
+
+qt_x_step_beta_nystrom_cpp <- function(n_rows, T, B, col_sums, qy_t, qt, qt_x) {
+    .Call(`_IBclust_qt_x_step_beta_nystrom_cpp`, n_rows, T, B, col_sums, qy_t, qt, qt_x)
+}
+
+qt_x_step_gib_nystrom_cpp <- function(n_rows, T, beta, alpha, B, col_sums, qy_t, qt) {
+    .Call(`_IBclust_qt_x_step_gib_nystrom_cpp`, n_rows, T, beta, alpha, B, col_sums, qy_t, qt)
 }
 

@@ -58,6 +58,42 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// js_divergence_nystrom
+double js_divergence_nystrom(const arma::vec& p_z_i, const arma::vec& p_z_j);
+RcppExport SEXP _IBclust_js_divergence_nystrom(SEXP p_z_iSEXP, SEXP p_z_jSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::vec& >::type p_z_i(p_z_iSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type p_z_j(p_z_jSEXP);
+    rcpp_result_gen = Rcpp::wrap(js_divergence_nystrom(p_z_i, p_z_j));
+    return rcpp_result_gen;
+END_RCPP
+}
+// make_IB_distmat_nystrom_cpp
+arma::mat make_IB_distmat_nystrom_cpp(const arma::mat& B, const arma::vec& col_sums);
+RcppExport SEXP _IBclust_make_IB_distmat_nystrom_cpp(SEXP BSEXP, SEXP col_sumsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::mat& >::type B(BSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type col_sums(col_sumsSEXP);
+    rcpp_result_gen = Rcpp::wrap(make_IB_distmat_nystrom_cpp(B, col_sums));
+    return rcpp_result_gen;
+END_RCPP
+}
+// mutual_information_nystrom_cpp
+double mutual_information_nystrom_cpp(const arma::mat& B, const arma::vec& col_sums);
+RcppExport SEXP _IBclust_mutual_information_nystrom_cpp(SEXP BSEXP, SEXP col_sumsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::mat& >::type B(BSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type col_sums(col_sumsSEXP);
+    rcpp_result_gen = Rcpp::wrap(mutual_information_nystrom_cpp(B, col_sums));
+    return rcpp_result_gen;
+END_RCPP
+}
 // klSingle
 double klSingle(const arma::vec& p, const arma::vec& q);
 RcppExport SEXP _IBclust_klSingle(SEXP pSEXP, SEXP qSEXP) {
@@ -82,7 +118,7 @@ BEGIN_RCPP
 END_RCPP
 }
 // qt_x_step_cpp
-arma::mat qt_x_step_cpp(int n_rows, int T, double beta, const arma::mat& py_x, const arma::mat& qy_t, const arma::vec& qt);
+List qt_x_step_cpp(int n_rows, int T, double beta, const arma::mat& py_x, const arma::mat& qy_t, const arma::vec& qt);
 RcppExport SEXP _IBclust_qt_x_step_cpp(SEXP n_rowsSEXP, SEXP TSEXP, SEXP betaSEXP, SEXP py_xSEXP, SEXP qy_tSEXP, SEXP qtSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
@@ -144,18 +180,106 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// qy_t_step_nystrom_cpp
+arma::mat qy_t_step_nystrom_cpp(const arma::mat& B, const arma::vec& col_sums, const arma::mat& qt_x, const arma::vec& qt, const arma::vec& px);
+RcppExport SEXP _IBclust_qy_t_step_nystrom_cpp(SEXP BSEXP, SEXP col_sumsSEXP, SEXP qt_xSEXP, SEXP qtSEXP, SEXP pxSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::mat& >::type B(BSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type col_sums(col_sumsSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type qt_x(qt_xSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type qt(qtSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type px(pxSEXP);
+    rcpp_result_gen = Rcpp::wrap(qy_t_step_nystrom_cpp(B, col_sums, qt_x, qt, px));
+    return rcpp_result_gen;
+END_RCPP
+}
+// compute_cross_entropy_nystrom
+arma::mat compute_cross_entropy_nystrom(const arma::mat& B, const arma::vec& col_sums, const arma::mat& qy_t);
+RcppExport SEXP _IBclust_compute_cross_entropy_nystrom(SEXP BSEXP, SEXP col_sumsSEXP, SEXP qy_tSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::mat& >::type B(BSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type col_sums(col_sumsSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type qy_t(qy_tSEXP);
+    rcpp_result_gen = Rcpp::wrap(compute_cross_entropy_nystrom(B, col_sums, qy_t));
+    return rcpp_result_gen;
+END_RCPP
+}
+// qt_x_step_nystrom_cpp
+List qt_x_step_nystrom_cpp(int n_rows, int T, double beta, const arma::mat& B, const arma::vec& col_sums, const arma::mat& qy_t, const arma::vec& qt);
+RcppExport SEXP _IBclust_qt_x_step_nystrom_cpp(SEXP n_rowsSEXP, SEXP TSEXP, SEXP betaSEXP, SEXP BSEXP, SEXP col_sumsSEXP, SEXP qy_tSEXP, SEXP qtSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< int >::type n_rows(n_rowsSEXP);
+    Rcpp::traits::input_parameter< int >::type T(TSEXP);
+    Rcpp::traits::input_parameter< double >::type beta(betaSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type B(BSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type col_sums(col_sumsSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type qy_t(qy_tSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type qt(qtSEXP);
+    rcpp_result_gen = Rcpp::wrap(qt_x_step_nystrom_cpp(n_rows, T, beta, B, col_sums, qy_t, qt));
+    return rcpp_result_gen;
+END_RCPP
+}
+// qt_x_step_beta_nystrom_cpp
+List qt_x_step_beta_nystrom_cpp(int n_rows, int T, const arma::mat& B, const arma::vec& col_sums, const arma::mat& qy_t, const arma::vec& qt, const arma::mat& qt_x);
+RcppExport SEXP _IBclust_qt_x_step_beta_nystrom_cpp(SEXP n_rowsSEXP, SEXP TSEXP, SEXP BSEXP, SEXP col_sumsSEXP, SEXP qy_tSEXP, SEXP qtSEXP, SEXP qt_xSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< int >::type n_rows(n_rowsSEXP);
+    Rcpp::traits::input_parameter< int >::type T(TSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type B(BSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type col_sums(col_sumsSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type qy_t(qy_tSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type qt(qtSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type qt_x(qt_xSEXP);
+    rcpp_result_gen = Rcpp::wrap(qt_x_step_beta_nystrom_cpp(n_rows, T, B, col_sums, qy_t, qt, qt_x));
+    return rcpp_result_gen;
+END_RCPP
+}
+// qt_x_step_gib_nystrom_cpp
+arma::mat qt_x_step_gib_nystrom_cpp(int n_rows, int T, double beta, double alpha, const arma::mat& B, const arma::vec& col_sums, const arma::mat& qy_t, const arma::vec& qt);
+RcppExport SEXP _IBclust_qt_x_step_gib_nystrom_cpp(SEXP n_rowsSEXP, SEXP TSEXP, SEXP betaSEXP, SEXP alphaSEXP, SEXP BSEXP, SEXP col_sumsSEXP, SEXP qy_tSEXP, SEXP qtSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< int >::type n_rows(n_rowsSEXP);
+    Rcpp::traits::input_parameter< int >::type T(TSEXP);
+    Rcpp::traits::input_parameter< double >::type beta(betaSEXP);
+    Rcpp::traits::input_parameter< double >::type alpha(alphaSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type B(BSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type col_sums(col_sumsSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type qy_t(qy_tSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type qt(qtSEXP);
+    rcpp_result_gen = Rcpp::wrap(qt_x_step_gib_nystrom_cpp(n_rows, T, beta, alpha, B, col_sums, qy_t, qt));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_IBclust_entropySingle", (DL_FUNC) &_IBclust_entropySingle, 1},
     {"_IBclust_make_IB_distmat", (DL_FUNC) &_IBclust_make_IB_distmat, 1},
     {"_IBclust_js_divergence", (DL_FUNC) &_IBclust_js_divergence, 2},
     {"_IBclust_mutual_information", (DL_FUNC) &_IBclust_mutual_information, 2},
+    {"_IBclust_js_divergence_nystrom", (DL_FUNC) &_IBclust_js_divergence_nystrom, 2},
+    {"_IBclust_make_IB_distmat_nystrom_cpp", (DL_FUNC) &_IBclust_make_IB_distmat_nystrom_cpp, 2},
+    {"_IBclust_mutual_information_nystrom_cpp", (DL_FUNC) &_IBclust_mutual_information_nystrom_cpp, 2},
     {"_IBclust_klSingle", (DL_FUNC) &_IBclust_klSingle, 2},
     {"_IBclust_vlog", (DL_FUNC) &_IBclust_vlog, 1},
     {"_IBclust_qt_x_step_cpp", (DL_FUNC) &_IBclust_qt_x_step_cpp, 6},
     {"_IBclust_qt_x_step_beta_cpp", (DL_FUNC) &_IBclust_qt_x_step_beta_cpp, 6},
     {"_IBclust_qy_t_step_cpp", (DL_FUNC) &_IBclust_qy_t_step_cpp, 4},
     {"_IBclust_qt_x_step_gib_cpp", (DL_FUNC) &_IBclust_qt_x_step_gib_cpp, 7},
+    {"_IBclust_qy_t_step_nystrom_cpp", (DL_FUNC) &_IBclust_qy_t_step_nystrom_cpp, 5},
+    {"_IBclust_compute_cross_entropy_nystrom", (DL_FUNC) &_IBclust_compute_cross_entropy_nystrom, 3},
+    {"_IBclust_qt_x_step_nystrom_cpp", (DL_FUNC) &_IBclust_qt_x_step_nystrom_cpp, 7},
+    {"_IBclust_qt_x_step_beta_nystrom_cpp", (DL_FUNC) &_IBclust_qt_x_step_beta_nystrom_cpp, 7},
+    {"_IBclust_qt_x_step_gib_nystrom_cpp", (DL_FUNC) &_IBclust_qt_x_step_gib_nystrom_cpp, 8},
     {NULL, NULL, 0}
 };
 
