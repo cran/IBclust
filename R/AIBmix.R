@@ -25,7 +25,11 @@
 #' @param cat_first A logical value indicating whether bandwidth selection is prioritised for the categorical variables, instead of the continuous.
 #'   Defaults to \code{FALSE}. Set to \code{TRUE} if you suspect that the continuous variables are not informative of the cluster structure. Can only
 #'   be \code{TRUE} when all bandwidths are selected automatically (i.e. \code{s = -1}, \code{lambda = -1}).
-#'
+#' @param keep_data Logical; if \code{TRUE}, the original input data \code{X}
+#'   is stored in the returned object as \code{training_data}, enabling the
+#'   use of \code{predict()} and certain plotting methods without re-passing
+#'   the data. Defaults to \code{FALSE} to keep returned objects lightweight.
+
 #' @return An object of class \code{"aibclust"} representing the final clustering result. The returned object is a list with the following components:
 #'   \item{merges}{A data frame with 2 columns and \eqn{n} rows, showing which observations are merged at each step.}
 #'   \item{merge_costs}{A numeric vector tracking the cost incurred by each merge \eqn{I(T_{m} ; Y) - I(T_{m-1} ; Y)}.}
@@ -33,6 +37,9 @@
 #'   \item{I_T_Y}{A numeric vector including the mutual information \eqn{I(T_{m}; Y)} as the number of clusters \eqn{m} increases.}
 #'   \item{I_X_Y}{A numeric value of the mutual information \eqn{I(X; Y)} between observation indices and location.}
 #'   \item{info_ret}{A numeric vector of length \eqn{n} including the fraction of the original information retained after each merge.}
+#'   \item{H_T}{A numeric vector of length \eqn{n}; the entropy \eqn{H(T_m)} at each cluster count \eqn{m}.}
+#'   \item{H_T_X}{A numeric vector of length \eqn{n}; the conditional entropy \eqn{H(T_m | X)} at each cluster count. For agglomerative hard clustering this is zero throughout, since \eqn{T_m} is a deterministic function of \eqn{X}.}
+#'   \item{I_T_X}{A numeric vector of length \eqn{n}; the mutual information \eqn{I(T_m; X)} at each cluster count. Equals \eqn{H(T_m)} for hard clustering.}
 #'   \item{s}{A numeric vector of bandwidth parameters used for the continuous variables. A value of \eqn{-1} is returned if all variables are categorical.}
 #'   \item{lambda}{A numeric vector of bandwidth parameters used for the categorical variables. A value of \eqn{-1} is returned if all variables are continuous.}
 #'   \item{call}{The matched call.}
@@ -42,19 +49,13 @@
 #'   \item{kernels}{List with names of kernels used for continuous, nominal, and ordinal features.}
 #'   \item{obs_names}{Names of rows in \code{X}; used for plotting the cluster hierarchy using a dendrogram.}
 #'   \item{scale}{Logical indicating whether continuous variables were scaled to unit variance before clustering.}
-#'
-#' Objects of class \code{"aibclust"} support the following methods:
-#'   \itemize{
-#'     \item \code{print.aibclust}: Display a concise description of the cluster hierarchy.
-#'     \item \code{summary.aibclust}: Show detailed information including cluster sizes for 2, 3, and 5 clusters,
-#'           information-theoretic metrics, and hyperparameters.
-#'     \item \code{plot.aibclust}: Produce diagnostic plots:
-#'       \itemize{
-#'         \item \code{type = "dendrogram"}: dendrogram visualising the hierarchy of partitions obtained.
-#'         \item \code{type = "info"}: information retention curve; the proportion of information preserved \eqn{I(T_m;Y)/I(X;Y)} by the clustering \eqn{T_m} is plotted against the number of clusters \eqn{m}.
-#'         \item \code{type = "importance"}: barplot of variable importance \eqn{I(T_m; Y_j)} at a chosen number of clusters \eqn{m}. Requires \code{X} (the original data frame) and \code{ncl} (the number of clusters at which to cut the hierarchy).
-#'     }
-#'   }
+#'   \item{training_data}{The original input data \code{X}, included only when \code{keep_data = TRUE}; \code{NULL} or absent otherwise.}
+#'   
+#' @return An object of class \code{aibclust}. See
+#'   \code{\link{aibclust-methods}} for the available S3 methods
+#'   (\code{print}, \code{summary}, \code{plot}, \code{fitted},
+#'   \code{coef}, \code{info_metrics}, \code{as.hclust},
+#'   \code{as.dendrogram}).
 #'
 #' @details
 #' The \code{AIBmix} function produces a hierarchical agglomerative clustering of the data while retaining maximal information about the original variable
@@ -64,50 +65,9 @@
 #' controlling complexity. The method is well-suited for datasets with mixed-type variables and integrates
 #' information from all variable types effectively.
 #'
-#' The following kernel functions can be used to estimate densities for the clustering procedure. For continuous variables:
-#'
-#' \itemize{
-#'   \item \emph{Gaussian (RBF) kernel \insertCite{silverman_density_1998}{IBclust}:}
-#'   \deqn{K_c\left(\frac{x - x'}{s}\right) = \frac{1}{\sqrt{2\pi}} \exp\left\{-\frac{\left(x - x'\right)^2}{2s^2}\right\}, \quad s > 0.}
-#'   \item \emph{Epanechnikov kernel \insertCite{epanechnikov1969non}{IBclust}:}
-#'   \deqn{K_c(x - x'; s) = \begin{cases}
-#'     \frac{3}{4\sqrt{5}}\left(1 - \frac{(x-x')^2}{5s^2} \right), & \text{if } \frac{(x - x')^2}{s^2} < 5 \\
-#'     0, & \text{otherwise}
-#' \end{cases}, \quad s > 0.}
-#' }
-#'
-#' For nominal (unordered categorical variables):
-#'
-#' \itemize{
-#' \item \emph{Aitchison & Aitken kernel \insertCite{aitchison_kernel_1976}{IBclust}:}
-#' \deqn{K_u(x = x'; \lambda) = \begin{cases}
-#'     1 - \lambda, & \text{if } x = x' \\
-#'     \frac{\lambda}{\ell - 1}, & \text{otherwise}
-#' \end{cases}, \quad 0 \leq \lambda \leq \frac{\ell - 1}{\ell}.}
-#' \item \emph{Li & Racine kernel \insertCite{ouyang2006cross}{IBclust}:}
-#' \deqn{K_u(x = x'; \lambda) = \begin{cases}
-#'     1, & \text{if } x = x' \\
-#'     \lambda, & \text{otherwise}
-#' \end{cases}, \quad 0 \leq \lambda \leq 1.}
-#' }
-#'
-#' For ordinal (ordered categorical) variables:
-#'
-#' \itemize{
-#' \item \emph{Li & Racine kernel \insertCite{li_nonparametric_2003}{IBclust}:}
-#' \deqn{K_o(x = x'; \nu) = \begin{cases}
-#'     1, & \text{if } x = x' \\
-#'     \nu^{|x - x'|}, & \text{otherwise}
-#' \end{cases}, \quad 0 \leq \nu \leq 1.}
-#' \item \emph{Wang & van Ryzin kernel \insertCite{wang1981class}{IBclust}:}
-#' \deqn{K_o(x = x'; \nu) = \begin{cases}
-#'     1 - \nu, & \text{if } x = x' \\
-#'     \frac{1-\nu}{2}\nu^{|x - x'|}, & \text{otherwise}
-#' \end{cases}, \quad 0 \leq \nu \leq 1.}
-#' }
-#'
-#' The bandwidth parameters \eqn{s}, \eqn{\lambda}, and \eqn{\nu} control the smoothness of the density estimate and are automatically determined by the algorithm if not provided by the user using the approach in \insertCite{costa_dib_2025;textual}{IBclust}. \eqn{\ell} is the number of levels of the categorical variable. For ordinal variables, the lambda parameter of the function is used to define \eqn{\nu}.
-#'
+#' See \code{\link{IBclust-package}} for details on the available kernel
+#' functions and their bandwidth parameters.
+#' 
 #' @examples
 #' # Example dataset with categorical, ordinal, and continuous variables
 #' set.seed(123)
@@ -138,8 +98,10 @@
 #'
 #' # Run AIBmix with automatic lambda selection
 #' result_cat <- AIBmix(X = data_cat, lambda = -1)
-#'
-#' # Print clustering results
+#' coef(result_cat)                       # Check bandwidths chosen
+#' fitted(result_cat, ncl = 3)            # Partition at the 3-cluster cut
+#' info_metrics(result_cat, ncl = 3)      # Information-theoretic quantities at 3 clusters
+#' plot(result_cat, ncl = 3, type = "similarity") # Plot of similarity matrix at 3 clusters
 #' plot(result_cat, type = "dendrogram", xlab = "", sub = "", cex = 0.5)  # Plot dendrogram
 #'
 #' # Results summary
@@ -156,27 +118,14 @@
 #' # Print concise summary of output
 #' print(result_cont)
 #'
-#' # Print clustering results
-#' plot(result_cont, type = "dendrogram", xlab = "", sub = "", cex = 0.5)  # Plot dendrogram
+#' # Convert to hclust for standard tree tools
+#' hc <- as.hclust(result_cont)
+#' cutree(hc, k = 3)
 #'
 #' @author Efthymios Costa, Ioanna Papatsouma, Angelos Markos
 #'
 #' @references
 #' \insertRef{slonim_aib_1999}{IBclust}
-#'
-#' \insertRef{aitchison_kernel_1976}{IBclust}
-#'
-#' \insertRef{li_nonparametric_2003}{IBclust}
-#'
-#' \insertRef{silverman_density_1998}{IBclust}
-#'
-#' \insertRef{ouyang2006cross}{IBclust}
-#'
-#' \insertRef{wang1981class}{IBclust}
-#'
-#' \insertRef{epanechnikov1969non}{IBclust}
-#'
-#' \insertRef{costa_dib_2025}{IBclust}
 #'
 #' @keywords clustering
 #' @export
@@ -186,12 +135,15 @@ AIBmix <- function(X, s = -1, lambda = -1,
                    contkernel = "gaussian",
                    nomkernel = "aitchisonaitken",
                    ordkernel = "liracine",
-                   cat_first = FALSE) {
+                   cat_first = FALSE,
+                   keep_data = TRUE) {
+  X_original <- X
   prep_list <- input_checks_preprocess(X, s, lambda,
                                        scale, contkernel, nomkernel,
                                        ordkernel, cat_first, nystrom = FALSE,
                                        n_landmarks = NULL,
-                                       nystrom_available = FALSE)
+                                       nystrom_available = FALSE,
+                                       keep_data = keep_data)
   X <- prep_list$X
   bws_vec <- prep_list$bws_vec
   contcols <- prep_list$contcols
@@ -249,6 +201,9 @@ AIBmix <- function(X, s = -1, lambda = -1,
     I_T_Y = best_clust$I_Z_Y,
     I_X_Y = best_clust$I_X_Y,
     info_ret = best_clust$info_ret,
+    H_T = best_clust$H_T,
+    H_T_X = best_clust$H_T_X,
+    I_T_X = best_clust$I_T_X,
     s = if (length(contcols) == 0) -1 else as.vector(bws_vec[contcols]),
     lambda = if (length(catcols) == 0) -1 else as.vector(bws_vec[catcols]),
     call = match.call(),
@@ -256,7 +211,11 @@ AIBmix <- function(X, s = -1, lambda = -1,
     contcols = contcols,
     catcols = catcols,
     kernels = list(cont = contkernel, nom = nomkernel, ord = ordkernel),
-    obs_names = obs_names
+    obs_names = obs_names,
+    scale = scale
   )
+  if (isTRUE(keep_data)) {
+    res$training_data <- X_original
+  }
   return(res)
 }
